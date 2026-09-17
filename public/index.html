@@ -3,88 +3,242 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Android APK Builder Studio</title>
+    <title>Android APK Builder Studio - Premium</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-<div class="workspace">
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="logo">
-            <h2>APK BUILDER STUDIO</h2>
-        </div>
-
-        <div class="section">
-            <h3>Projects</h3>
-            <div id="projectList" class="project-list"></div>
-            <button class="btn btn-primary" onclick="showCreateProject()">+ New Project</button>
-        </div>
-
-        <div class="section">
-            <h3>Actions</h3>
-            <button class="btn btn-build" id="buildBtn" onclick="buildProject()" disabled>🔨 Build APK</button>
-            <button class="btn btn-download" id="downloadBtn" onclick="downloadAPK()" disabled>⬇️ Download APK</button>
-        </div>
-    </div>
-
-    <!-- Main editor area -->
-    <div class="editor-area">
-        <!-- Top toolbar -->
-        <div class="toolbar">
-            <span id="currentFile">No file selected</span>
-            <div class="toolbar-actions">
-                <button onclick="saveCurrentFile()" class="btn btn-small">💾 Save</button>
-                <button onclick="newFile()" class="btn btn-small">📄 New File</button>
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo-container">
+            <div class="logo-icon">
+                <i class="fas fa-cube"></i>
             </div>
-        </div>
-
-        <div class="editor-container">
-            <!-- File tree -->
-            <div class="file-tree">
-                <h4>Project Structure</h4>
-                <div id="fileTree" class="tree"></div>
-            </div>
-
-            <!-- Code editor -->
-            <div class="code-editor">
-                <textarea id="codeEditor" placeholder="Select a file to edit..."></textarea>
+            <div class="logo-text">
+                <h2>APK STUDIO</h2>
+                <p>Premium Edition</p>
             </div>
         </div>
     </div>
 
-    <!-- Build console -->
-    <div class="console">
-        <div class="console-header">Build Console</div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">
+            <h3>PROJECTS</h3>
+            <button class="nav-btn new-project-btn" onclick="openCreateProjectModal()">
+                <i class="fas fa-plus"></i> New Project
+            </button>
+            <div id="projectsList" class="projects-list"></div>
+        </div>
+
+        <div class="nav-section mt-20">
+            <h3>ACTIONS</h3>
+            <button class="nav-btn action-btn" id="buildBtn" onclick="buildProject()" disabled>
+                <i class="fas fa-hammer"></i> Build APK
+            </button>
+            <button class="nav-btn action-btn download-btn" id="downloadBtn" onclick="downloadAPK()" disabled>
+                <i class="fas fa-download"></i> Download
+            </button>
+            <button class="nav-btn action-btn delete-btn" id="deleteBtn" onclick="deleteProject()" disabled>
+                <i class="fas fa-trash"></i> Delete Project
+            </button>
+        </div>
+
+        <div class="nav-section mt-20">
+            <h3>STORAGE</h3>
+            <div class="storage-info">
+                <div class="storage-bar">
+                    <div class="storage-used" id="storageUsed"></div>
+                </div>
+                <p id="storageText">0 MB / 500 MB</p>
+            </div>
+        </div>
+    </nav>
+
+    <div class="sidebar-footer">
+        <p>v1.0.0 Premium</p>
+    </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main-container">
+    <!-- TOP BAR -->
+    <div class="top-bar">
+        <div class="top-bar-left">
+            <h2 id="currentProjectName">No Project Selected</h2>
+            <p id="currentProjectPackage"></p>
+        </div>
+        <div class="top-bar-right">
+            <button class="btn-icon" onclick="toggleTheme()" title="Toggle Theme">
+                <i class="fas fa-moon"></i>
+            </button>
+            <button class="btn-icon" onclick="openSettings()" title="Settings">
+                <i class="fas fa-cog"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- EDITOR SECTION -->
+    <div class="editor-section">
+        <!-- FILE TREE -->
+        <div class="file-panel">
+            <div class="file-header">
+                <h3>Project Structure</h3>
+                <button class="btn-sm" onclick="openNewFileModal()" title="Add File">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+            <div id="fileTree" class="file-tree"></div>
+        </div>
+
+        <!-- CODE EDITOR -->
+        <div class="editor-panel">
+            <div class="editor-header">
+                <div class="editor-title">
+                    <i class="fas fa-file-code"></i>
+                    <span id="editorFileName">No File Selected</span>
+                </div>
+                <div class="editor-actions">
+                    <button class="btn-sm" onclick="saveCurrentFile()" title="Save (Ctrl+S)">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    <button class="btn-sm" onclick="beautifyCode()" title="Format Code">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                    </button>
+                </div>
+            </div>
+            <textarea id="codeEditor" class="code-editor" placeholder="Select a file to edit..."></textarea>
+        </div>
+    </div>
+
+    <!-- CONSOLE SECTION -->
+    <div class="console-section">
+        <div class="console-header">
+            <h3>Build Console</h3>
+            <button class="btn-sm" onclick="clearConsole()" title="Clear Console">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
         <div id="console" class="console-output"></div>
     </div>
 </div>
 
-<!-- Modal for new project -->
+<!-- MODALS -->
+
+<!-- Create Project Modal -->
 <div id="createProjectModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal('createProjectModal')">&times;</span>
-        <h2>Create New Project</h2>
-        <form onsubmit="createProject(event)">
-            <input type="text" id="projectNameInput" placeholder="Project Name" required />
-            <input type="text" id="packageNameInput" placeholder="Package Name (com.example.app)" required />
-            <input type="text" id="appNameInput" placeholder="App Name" required />
-            <input type="number" id="minSdkInput" placeholder="Min SDK" value="21" />
-            <input type="number" id="targetSdkInput" placeholder="Target SDK" value="33" />
-            <button type="submit" class="btn btn-primary">Create</button>
+    <div class="modal-content premium-modal">
+        <div class="modal-header">
+            <h2><i class="fas fa-rocket"></i> Create New Project</h2>
+            <button class="close-btn" onclick="closeModal('createProjectModal')">&times;</button>
+        </div>
+        <form onsubmit="createProject(event)" class="form-group">
+            <div class="form-field">
+                <label><i class="fas fa-tag"></i> Project Name</label>
+                <input type="text" id="projectNameInput" placeholder="e.g., MyAwesomeApp" required />
+            </div>
+            <div class="form-field">
+                <label><i class="fas fa-box"></i> Package Name</label>
+                <input type="text" id="packageNameInput" placeholder="e.g., com.example.myapp" required />
+            </div>
+            <div class="form-field">
+                <label><i class="fas fa-mobile"></i> App Name</label>
+                <input type="text" id="appNameInput" placeholder="Display name for your app" required />
+            </div>
+            <div class="form-row">
+                <div class="form-field">
+                    <label><i class="fas fa-chart-line"></i> Min SDK</label>
+                    <input type="number" id="minSdkInput" value="21" min="19" max="33" />
+                </div>
+                <div class="form-field">
+                    <label><i class="fas fa-flag"></i> Target SDK</label>
+                    <input type="number" id="targetSdkInput" value="33" min="19" max="34" />
+                </div>
+            </div>
+            <button type="submit" class="btn-primary btn-lg">
+                <i class="fas fa-check"></i> Create Project
+            </button>
         </form>
     </div>
 </div>
 
-<!-- Modal for new file -->
+<!-- New File Modal -->
 <div id="newFileModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal('newFileModal')">&times;</span>
-        <h2>Create New File</h2>
-        <form onsubmit="createNewFile(event)">
-            <input type="text" id="newFilePathInput" placeholder="File path (e.g., app/src/main/java/com/example/MainActivity.java)" required />
-            <button type="submit" class="btn btn-primary">Create</button>
+    <div class="modal-content premium-modal">
+        <div class="modal-header">
+            <h2><i class="fas fa-file-plus"></i> Create New File</h2>
+            <button class="close-btn" onclick="closeModal('newFileModal')">&times;</button>
+        </div>
+        <form onsubmit="createNewFile(event)" class="form-group">
+            <div class="form-field">
+                <label><i class="fas fa-folder-tree"></i> File Path</label>
+                <input type="text" id="newFilePathInput" placeholder="app/src/main/java/com/example/MyFile.java" required />
+            </div>
+            <div class="form-field">
+                <label><i class="fas fa-pen"></i> Initial Content (Optional)</label>
+                <textarea id="newFileContent" placeholder="Leave empty for blank file..." style="height: 150px;"></textarea>
+            </div>
+            <button type="submit" class="btn-primary btn-lg">
+                <i class="fas fa-plus"></i> Create File
+            </button>
         </form>
+    </div>
+</div>
+
+<!-- File Options Modal -->
+<div id="fileOptionsModal" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="file-options">
+            <button onclick="deleteCurrentFile()" class="option-btn delete-option">
+                <i class="fas fa-trash"></i> Delete File
+            </button>
+            <button onclick="renameCurrentFile()" class="option-btn">
+                <i class="fas fa-edit"></i> Rename
+            </button>
+            <button onclick="duplicateCurrentFile()" class="option-btn">
+                <i class="fas fa-copy"></i> Duplicate
+            </button>
+            <button onclick="closeModal('fileOptionsModal')" class="option-btn cancel-option">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsModal" class="modal">
+    <div class="modal-content premium-modal">
+        <div class="modal-header">
+            <h2><i class="fas fa-sliders"></i> Settings</h2>
+            <button class="close-btn" onclick="closeModal('settingsModal')">&times;</button>
+        </div>
+        <div class="settings-group">
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4>Dark Mode</h4>
+                    <p>Toggle dark/light theme</p>
+                </div>
+                <input type="checkbox" id="darkModeToggle" onchange="saveSetting('darkMode', this.checked)" class="toggle" />
+            </div>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4>Auto-save</h4>
+                    <p>Save files automatically</p>
+                </div>
+                <input type="checkbox" id="autoSaveToggle" checked onchange="saveSetting('autoSave', this.checked)" class="toggle" />
+            </div>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4>Font Size</h4>
+                    <p>Adjust code editor font size</p>
+                </div>
+                <input type="range" id="fontSizeRange" min="12" max="20" value="14" onchange="saveSetting('fontSize', this.value)" />
+            </div>
+            <button onclick="clearAllData()" class="btn-danger btn-lg mt-20">
+                <i class="fas fa-exclamation-triangle"></i> Clear All Data
+            </button>
+        </div>
     </div>
 </div>
 

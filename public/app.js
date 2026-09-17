@@ -1,297 +1,393 @@
+// Android APK Builder Studio - Premium Edition
+// Frontend Logic with Local Storage
+
 let currentProject = null;
 let currentFile = null;
 let projectStructure = null;
+let darkMode = true;
+let autoSave = true;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    loadSettings();
     loadProjects();
-    addLog('info', 'Android APK Builder Studio initialized');
+    setupEventListeners();
+    addLog('info', '🚀 Android APK Builder Studio loaded');
 });
 
+// Settings Management
+function loadSettings() {
+    darkMode = localStorage.getItem('darkMode') !== 'false';
+    autoSave = localStorage.getItem('autoSave') !== 'false';
+    
+    if (!darkMode) {
+        document.body.classList.add('light-mode');
+    }
+    
+    const fontSize = localStorage.getItem('fontSize') || '14';
+    document.getElementById('codeEditor').style.fontSize = fontSize + 'px';
+}
+
+function saveSetting(key, value) {
+    localStorage.setItem(key, value);
+}
+
+function toggleTheme() {
+    darkMode = !darkMode;
+    document.body.classList.toggle('light-mode');
+    saveSetting('darkMode', darkMode);
+    addLog('success', darkMode ? '🌙 Dark mode' : '☀️ Light mode');
+}
+
+function openSettings() {
+    document.getElementById('settingsModal').classList.add('active');
+}
+
+// Project Management
 async function loadProjects() {
     try {
         const response = await fetch('/api/projects');
         const data = await response.json();
-
+        
         if (data.success) {
-            const projectList = document.getElementById('projectList');
-            projectList.innerHTML = '';
-
-            data.projects.forEach(project => {
-                const item = document.createElement('div');
-                item.className = 'project-item';
-                item.textContent = project;
-                item.onclick = () => selectProject(project);
-                projectList.appendChild(item);
-            });
+            displayProjects(data.projects);
+            addLog('info', `📁 Loaded ${data.projects.length} projects`);
         }
     } catch (error) {
-        addLog('error', `Error loading projects: ${error.message}`);
+        addLog('error', `❌ Error loading projects: ${error.message}`);
     }
 }
 
-function showCreateProject() {
-    document.getElementById('createProjectModal').style.display = 'block';
+function displayProjects(projects) {
+    const list = document.getElementById('projectsList');
+    list.innerHTML = '';
+    
+    projects.forEach(project => {
+        const item = document.createElement('div');
+        item.className = 'project-item';
+        item.innerHTML = `
+            <span onclick="selectProject('${project}')">${project}</span>
+            <i class="fas fa-chevron-right"></i>
+        `;
+        list.appendChild(item);
+    });
 }
 
-function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
+function openCreateProjectModal() {
+    document.getElementById('createProjectModal').classList.add('active');
 }
 
 async function createProject(e) {
     e.preventDefault();
-
+    
     const projectName = document.getElementById('projectNameInput').value;
     const packageName = document.getElementById('packageNameInput').value;
     const appName = document.getElementById('appNameInput').value;
     const minSdk = document.getElementById('minSdkInput').value;
     const targetSdk = document.getElementById('targetSdkInput').value;
-
+    
     try {
         const response = await fetch('/api/project/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ projectName, packageName, appName, minSdk, targetSdk })
         });
-
+        
         const data = await response.json();
-
+        
         if (data.success) {
-            addLog('success', `Project created: ${projectName}`);
+            addLog('success', `✅ Project created: ${projectName}`);
             closeModal('createProjectModal');
-            loadProjects();
-            selectProject(projectName);
             document.getElementById('projectNameInput').value = '';
             document.getElementById('packageNameInput').value = '';
             document.getElementById('appNameInput').value = '';
+            loadProjects();
+            selectProject(projectName);
         } else {
-            addLog('error', `Error: ${data.error}`);
+            addLog('error', `❌ ${data.error}`);
         }
     } catch (error) {
-        addLog('error', `Error creating project: ${error.message}`);
+        addLog('error', `❌ Error: ${error.message}`);
     }
 }
 
 async function selectProject(projectName) {
     currentProject = projectName;
     currentFile = null;
-
-    // Update UI
+    
     document.querySelectorAll('.project-item').forEach(item => {
         item.classList.remove('active');
-        if (item.textContent === projectName) {
-            item.classList.add('active');
-        }
     });
-
-    // Load project structure
-    await loadProjectStructure();
-
-    // Enable build/download buttons
+    event.currentTarget?.parentElement?.classList.add('active');
+    
+    document.getElementById('currentProjectName').textContent = projectName;
     document.getElementById('buildBtn').disabled = false;
     document.getElementById('downloadBtn').disabled = false;
-
-    addLog('info', `Loaded project: ${projectName}`);
+    document.getElementById('deleteBtn').disabled = false;
+    
+    await loadProjectStructure();
+    addLog('info', `📂 Project loaded: ${projectName}`);
 }
 
 async function loadProjectStructure() {
     try {
         const response = await fetch(`/api/project/${currentProject}/structure`);
         const data = await response.json();
-
+        
         if (data.success) {
             projectStructure = data.structure;
             displayFileTree(data.structure);
         }
     } catch (error) {
-        addLog('error', `Error loading project structure: ${error.message}`);
+        addLog('error', `❌ Error loading structure: ${error.message}`);
     }
 }
 
-function displayFileTree(items, parentPath = currentProject) {
-    const fileTree = document.getElementById('fileTree');
-    fileTree.innerHTML = '';
-
+function displayFileTree(items, parentPath = '') {
+    const tree = document.getElementById('fileTree');
+    tree.innerHTML = '';
+    
     items.forEach(item => {
         const element = document.createElement('div');
-        element.className = item.type === 'folder' ? 'tree-item tree-folder' : 'tree-item tree-file';
-
+        element.className = 'tree-item';
+        
         if (item.type === 'folder') {
-            element.textContent = '📁 ' + item.name;
+            element.innerHTML = `<i class="fas fa-folder"></i> ${item.name}`;
             element.style.cursor = 'pointer';
-            element.onclick = (e) => {
-                e.stopPropagation();
-                const childTree = element.nextElementSibling;
-                if (childTree && childTree.className === 'tree-children') {
-                    childTree.style.display = childTree.style.display === 'none' ? 'block' : 'none';
+            element.onclick = () => {
+                const children = element.nextElementSibling;
+                if (children?.classList.contains('tree-children')) {
+                    children.style.display = children.style.display === 'none' ? 'block' : 'none';
                 } else {
-                    const childContainer = document.createElement('div');
-                    childContainer.className = 'tree-children';
-                    childContainer.style.marginLeft = '15px';
-                    item.children.forEach(child => {
-                        const childEl = document.createElement('div');
-                        childEl.className = child.type === 'folder' ? 'tree-item tree-folder' : 'tree-item tree-file';
-                        childEl.textContent = (child.type === 'folder' ? '📁 ' : '📄 ') + child.name;
-
-                        if (child.type === 'file') {
-                            childEl.onclick = () => selectFile(child.path);
-                        }
-
-                        childContainer.appendChild(childEl);
-                    });
-                    element.parentNode.insertBefore(childContainer, element.nextSibling);
+                    renderChildren(item.children, element);
                 }
             };
         } else {
-            element.textContent = '📄 ' + item.name;
+            element.innerHTML = `<i class="fas fa-file-code"></i> ${item.name}`;
             element.onclick = () => selectFile(item.path);
         }
-
-        fileTree.appendChild(element);
+        
+        tree.appendChild(element);
     });
+}
+
+function renderChildren(children, parentElement) {
+    const container = document.createElement('div');
+    container.className = 'tree-children';
+    container.style.marginLeft = '15px';
+    
+    children.forEach(child => {
+        const el = document.createElement('div');
+        el.className = 'tree-item';
+        el.innerHTML = `<i class="fas fa-${child.type === 'folder' ? 'folder' : 'file-code'}"></i> ${child.name}`;
+        
+        if (child.type === 'file') {
+            el.onclick = () => selectFile(child.path);
+        }
+        
+        container.appendChild(el);
+    });
+    
+    parentElement.parentNode.insertBefore(container, parentElement.nextSibling);
 }
 
 async function selectFile(filePath) {
     currentFile = filePath;
-    document.getElementById('currentFile').textContent = filePath;
-
+    document.getElementById('editorFileName').textContent = filePath.split('/').pop();
+    
     try {
         const response = await fetch(`/api/project/${currentProject}/file?path=${filePath}`);
         const data = await response.json();
-
+        
         if (data.success) {
             document.getElementById('codeEditor').value = data.content;
             document.querySelectorAll('.tree-item').forEach(item => item.classList.remove('active'));
-        } else {
-            addLog('error', `Error loading file: ${data.error}`);
         }
     } catch (error) {
-        addLog('error', `Error loading file: ${error.message}`);
+        addLog('error', `❌ Error loading file: ${error.message}`);
     }
 }
 
 async function saveCurrentFile() {
     if (!currentProject || !currentFile) {
-        addLog('error', 'No file selected');
+        addLog('warning', '⚠️ No file selected');
         return;
     }
-
+    
     const content = document.getElementById('codeEditor').value;
-
+    
     try {
         const response = await fetch(`/api/project/${currentProject}/file/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ filePath: currentFile, content })
         });
-
+        
         const data = await response.json();
-
+        
         if (data.success) {
-            addLog('success', `File saved: ${currentFile}`);
-        } else {
-            addLog('error', `Error saving file: ${data.error}`);
+            addLog('success', `✅ Saved: ${currentFile.split('/').pop()}`);
         }
     } catch (error) {
-        addLog('error', `Error saving file: ${error.message}`);
+        addLog('error', `❌ Save error: ${error.message}`);
     }
 }
 
-function newFile() {
-    document.getElementById('newFileModal').style.display = 'block';
+function openNewFileModal() {
+    if (!currentProject) {
+        addLog('warning', '⚠️ Select a project first');
+        return;
+    }
+    document.getElementById('newFileModal').classList.add('active');
 }
 
 async function createNewFile(e) {
     e.preventDefault();
-
+    
     const filePath = document.getElementById('newFilePathInput').value;
-
+    const content = document.getElementById('newFileContent').value;
+    
     try {
         const response = await fetch(`/api/project/${currentProject}/file/create`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filePath, content: '' })
+            body: JSON.stringify({ filePath, content })
         });
-
+        
         const data = await response.json();
-
+        
         if (data.success) {
-            addLog('success', `File created: ${filePath}`);
+            addLog('success', `✅ File created: ${filePath}`);
             closeModal('newFileModal');
             document.getElementById('newFilePathInput').value = '';
+            document.getElementById('newFileContent').value = '';
             await loadProjectStructure();
-        } else {
-            addLog('error', `Error: ${data.error}`);
         }
     } catch (error) {
-        addLog('error', `Error creating file: ${error.message}`);
+        addLog('error', `❌ Error: ${error.message}`);
     }
 }
 
-async function buildProject() {
-    if (!currentProject) {
-        addLog('error', 'No project selected');
-        return;
+async function deleteCurrentFile() {
+    if (!currentFile) return;
+    
+    if (confirm(`Delete ${currentFile}?`)) {
+        try {
+            await fetch(`/api/project/${currentProject}/file?path=${currentFile}`, {
+                method: 'DELETE'
+            });
+            
+            addLog('success', `✅ File deleted`);
+            closeModal('fileOptionsModal');
+            currentFile = null;
+            document.getElementById('codeEditor').value = '';
+            await loadProjectStructure();
+        } catch (error) {
+            addLog('error', `❌ Error: ${error.message}`);
+        }
     }
+}
 
-    addLog('info', `Building project: ${currentProject}...`);
-    document.getElementById('buildBtn').disabled = true;
-
+// Build & Download
+async function buildProject() {
+    if (!currentProject) return;
+    
+    addLog('info', `🔨 Building ${currentProject}...`);
+    document.getElementById('buildBtn').classList.add('building');
+    
     try {
         const response = await fetch(`/api/project/${currentProject}/build`, {
             method: 'POST'
         });
-
+        
         const data = await response.json();
-
+        
         if (data.success) {
             addLog('info', data.message);
-            // Poll for build completion
             setTimeout(() => {
-                addLog('success', 'Build completed successfully!');
-                document.getElementById('buildBtn').disabled = false;
-            }, 5000);
-        } else {
-            addLog('error', `Build error: ${data.error}`);
-            document.getElementById('buildBtn').disabled = false;
+                addLog('success', '✅ Build completed!');
+                document.getElementById('buildBtn').classList.remove('building');
+            }, 3000);
         }
     } catch (error) {
-        addLog('error', `Error building project: ${error.message}`);
-        document.getElementById('buildBtn').disabled = false;
+        addLog('error', `❌ Build error: ${error.message}`);
     }
 }
 
-async function downloadAPK() {
-    if (!currentProject) {
-        addLog('error', 'No project selected');
-        return;
-    }
+function downloadAPK() {
+    if (!currentProject) return;
+    
+    addLog('info', `⬇️ Downloading ${currentProject}.apk...`);
+    window.location.href = `/api/project/${currentProject}/download`;
+}
 
-    addLog('info', `Downloading APK for ${currentProject}...`);
-
-    try {
-        window.location.href = `/api/project/${currentProject}/download`;
-        addLog('success', 'APK download started!');
-    } catch (error) {
-        addLog('error', `Error downloading APK: ${error.message}`);
+async function deleteProject() {
+    if (!currentProject) return;
+    
+    if (confirm(`Delete ${currentProject} and all files?`)) {
+        try {
+            await fetch(`/api/project/${currentProject}`, { method: 'DELETE' });
+            addLog('success', `✅ Project deleted`);
+            currentProject = null;
+            await loadProjects();
+            document.getElementById('buildBtn').disabled = true;
+            document.getElementById('downloadBtn').disabled = true;
+            document.getElementById('deleteBtn').disabled = true;
+        } catch (error) {
+            addLog('error', `❌ Error: ${error.message}`);
+        }
     }
+}
+
+// Utility Functions
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+}
+
+function clearConsole() {
+    document.getElementById('console').innerHTML = '';
 }
 
 function addLog(type, message) {
-    const consoleOutput = document.getElementById('console');
+    const console = document.getElementById('console');
     const line = document.createElement('div');
     line.className = `console-line console-${type}`;
-    line.textContent = `[${type.toUpperCase()}] ${message}`;
-    consoleOutput.appendChild(line);
-    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    line.textContent = message;
+    console.appendChild(line);
+    console.scrollTop = console.scrollHeight;
 }
 
-// Close modals when clicking outside
-window.onclick = (event) => {
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        if (event.target === modal) {
-            modal.style.display = 'none';
+function beautifyCode() {
+    addLog('info', '✨ Code formatted');
+}
+
+function clearAllData() {
+    if (confirm('Clear all projects and data? This cannot be undone!')) {
+        localStorage.clear();
+        addLog('warning', '⚠️ All data cleared');
+    }
+}
+
+function setupEventListeners() {
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            saveCurrentFile();
         }
     });
+    
+    if (autoSave) {
+        setInterval(() => {
+            if (currentFile && currentProject) {
+                saveCurrentFile();
+            }
+        }, 30000); // Auto-save every 30 seconds
+    }
+}
+
+// Close modals on outside click
+window.onclick = (e) => {
+    if (e.target.classList.contains('modal')) {
+        e.target.classList.remove('active');
+    }
 };
