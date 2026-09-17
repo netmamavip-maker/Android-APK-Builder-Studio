@@ -1,7 +1,7 @@
 {
-  "name": "apk-builder-studio",
+  "name": "apk-builder-studio-premium",
   "version": "1.0.0",
-  "description": "Web-based Android APK Builder",
+  "description": "Professional Android APK Builder - Web IDE",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -18,5 +18,8 @@
   },
   "devDependencies": {
     "nodemon": "^2.0.20"
-  }
+  },
+  "keywords": ["android", "apk", "builder", "ide", "studio"],
+  "author": "",
+  "license": "MIT"
 }
